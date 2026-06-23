@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ChaosAR - Premium 3D Viewer</title>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+
+  <style>
+    /* Premium B2B Renk Paleti */
+    :root { 
+      --base: #050505; /* Çok koyu antrasit/siyah */
+      --surface: #141414; /* Mat antrasit deri hissiyatı */
+      --accent: #A57164; /* Yanık Bronz (Burnt Bronze) */
+      --text-primary: #F4F4F4; 
+      --text-secondary: #888888;
+      --border: rgba(165, 113, 100, 0.2); 
+    }
+    
+    body { font-family: 'Helvetica Neue', system-ui, sans-serif; background: var(--base); color: var(--text-primary); margin: 0; min-height: 100dvh; overflow: hidden; }
+    
+    /* Üst Bar ve Bilgi Butonu */
+    .top-bar { position: absolute; inset: 0 0 auto 0; z-index: 10; padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
+    .product-label { display: flex; flex-direction: column; gap: 4px; }
+    .name { font-size: 20px; font-weight: 300; letter-spacing: 1px; }
+    .sub { font-size: 11px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; font-weight: 600; }
+    
+    .info-btn { pointer-events: auto; width: 36px; height: 36px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-primary); display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(10px); font-family: serif; font-style: italic; }
+
+    model-viewer { width: 100%; height: 100dvh; outline: none; }
+    
+    /* Yükleme Ekranı (Progress Bar) */
+    .loading-overlay { position: absolute; inset: 0; z-index: 50; background: var(--base); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.6s ease; pointer-events: none; }
+    .loading-text { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 20px; font-weight: 500; }
+    .progress-track { width: 200px; height: 1px; background: rgba(255,255,255,0.1); position: relative; overflow: hidden; }
+    .progress-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--accent); width: 0%; transition: width 0.2s ease; }
+
+    /* Alt Buton */
+    .bottom-action { position: fixed; inset: auto 0 0 0; z-index: 20; padding: 0 24px 40px; pointer-events: none; }
+    .ar-trigger-btn { pointer-events: auto; width: 100%; padding: 18px; border-radius: 4px; background: var(--surface); color: var(--text-primary); font-size: 12px; letter-spacing: 2px; font-weight: 600; text-transform: uppercase; border: 1px solid var(--border); cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: background 0.3s; }
+    .ar-trigger-btn:active { background: var(--accent); color: #000; }
+
+    /* Bilgi Modalı */
+    .modal-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; background: rgba(0,0,0,0.8); opacity: 0; pointer-events: none; transition: opacity 0.3s; backdrop-filter: blur(8px); }
+    .modal-overlay.is-open { opacity: 1; pointer-events: all; }
+    .modal-card { width: 100%; max-width: 480px; background: var(--surface); padding: 40px 30px; border-top: 1px solid var(--border); border-radius: 16px 16px 0 0; }
+    .modal-title { font-size: 18px; margin-bottom: 16px; font-weight: 300; }
+    .modal-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px; }
+    .modal-close { width: 100%; padding: 14px; background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; cursor: pointer; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+
+  <!-- Yükleme Ekranı (Progress Bar) -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-text">Premium Deneyim Hazırlanıyor</div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <div class="top-bar">
+    <div class="product-label">
+      <span class="name" id="displayTitle">ZEN KÖŞE KOLTUK</span>
+      <span class="sub">Mat Antrasit Deri</span>
+    </div>
+    <button id="infoBtn" class="info-btn">i</button>
+  </div>
+
+  <!-- Bilgi Modalı -->
+  <div id="infoModal" class="modal-overlay">
+    <div class="modal-card">
+      <h2 class="modal-title">Ürün Detayları</h2>
+      <p class="modal-desc">
+        Modern ve minimalist çizgilerin kusursuz uyumu. Yüksek kaliteli mat antrasit deri kaplaması ve ergonomik yapısıyla yaşam alanlarınıza derinlik katar. <br><br>
+        <strong>Boyutlar:</strong> 280cm x 160cm x 75cm<br>
+        <strong>Materyal:</strong> Mat Antrasit Deri & Yanık Bronz Ayaklar
+      </p>
+      <button class="modal-close" id="closeModalBtn">Kapat</button>
+    </div>
+  </div>
+
+  <model-viewer
+    id="mainViewer"
+    ar
+    ar-modes="webxr scene-viewer quick-look"
+    camera-controls
+    disable-zoom
+    shadow-intensity="1.5">
+  </model-viewer>
+
+  <div class="bottom-action">
+    <button id="arTriggerBtn" class="ar-trigger-btn">Mekanda Görüntüle</button>
+  </div>
+
+  <a id="iosArLink" rel="ar" href="./zenkoltukk.usdz" style="display:none;"></a>
+
+<script>
+  const mv = document.getElementById('mainViewer');
+  const iosLink = document.getElementById('iosArLink');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const progressFill = document.getElementById('progressFill');
+
+  // Dosya Yolları
+  mv.src = './zenkoltukk.glb';
+  mv.setAttribute('ios-src', './zenkoltukk.usdz#allowsContentScaling=0');
+
+  // Yükleme Animasyonu Kontrolü
+  mv.addEventListener('progress', (event) => {
+    const progress = event.detail.totalProgress * 100;
+    progressFill.style.width = progress + '%';
+    
+    // Yüklendiğinde ekranı yavaşça kaybet
+    if (progress === 100) {
+      setTimeout(() => {
+        loadingOverlay.style.opacity = '0';
+      }, 500); // %100 olduktan yarım saniye sonra kaybolur
+    }
+  });
+
+  // Modal İşlemleri
+  const infoModal = document.getElementById('infoModal');
+  document.getElementById('infoBtn').onclick = () => infoModal.classList.add('is-open');
+  document.getElementById('closeModalBtn').onclick = () => infoModal.classList.remove('is-open');
+  infoModal.onclick = (e) => { if(e.target === infoModal) infoModal.classList.remove('is-open'); };
+
+  // AR Tetikleyici
+  document.getElementById('arTriggerBtn').onclick = () => {
+    const isIOS = /iPad|iPhone|iPod|Mac/.test(navigator.userAgent);
+    if (isIOS) {
+      iosLink.click();
+    } else {
+      mv.activateAR();
+    }
+  };
+</script>
+
+</body>
+</html>
